@@ -1,0 +1,460 @@
+# iOS Engineering Best Practices for AI Agents
+
+## Core iOS Development Principles
+
+### **Swift Language Excellence**
+
+1. **Modern Swift Features**:
+   - Use Swift 5.0+ features and syntax
+   - Prefer `let` over `var` for immutability
+   - Use optionals properly with safe unwrapping
+   - Leverage value types (structs, enums) over reference types when appropriate
+   - Use `guard` statements for early returns and validation
+   - Implement proper error handling with `Result` types and `throws`
+
+2. **Type Safety and Generics**:
+   - Use strong typing throughout the codebase
+   - Leverage generics for reusable, type-safe code
+   - Implement proper protocol-oriented programming
+   - Use associated types in protocols when needed
+   - Avoid `Any` and `AnyObject` unless absolutely necessary
+
+3. **Memory Management**:
+   - Understand ARC (Automatic Reference Counting) thoroughly
+   - Use weak references to break retain cycles
+   - Implement proper delegate patterns with weak references
+   - Use `unowned` references when you're certain the reference won't become nil
+   - Avoid strong reference cycles in closures
+
+### **iOS Architecture Patterns**
+
+1. **MVVM (Model-View-ViewModel)**:
+   ```swift
+   // Example MVVM structure
+   struct User {
+       let id: String
+       let name: String
+       let email: String
+   }
+   
+   class UserViewModel: ObservableObject {
+       @Published var user: User?
+       @Published var isLoading = false
+       @Published var errorMessage: String?
+       
+       private let userService: UserServiceProtocol
+       
+       init(userService: UserServiceProtocol = UserService()) {
+           self.userService = userService
+       }
+       
+       func fetchUser(id: String) {
+           isLoading = true
+           userService.fetchUser(id: id) { [weak self] result in
+               DispatchQueue.main.async {
+                   self?.isLoading = false
+                   switch result {
+                   case .success(let user):
+                       self?.user = user
+                   case .failure(let error):
+                       self?.errorMessage = error.localizedDescription
+                   }
+               }
+           }
+       }
+   }
+   ```
+
+2. **Protocol-Oriented Programming**:
+   - Define protocols for dependencies and abstractions
+   - Use protocol extensions for default implementations
+   - Implement dependency injection through protocols
+   - Create testable interfaces through protocols
+
+3. **Clean Architecture Principles**:
+   - Separate concerns into layers (Presentation, Domain, Data)
+   - Use dependency inversion for loose coupling
+   - Implement repository pattern for data access
+   - Keep business logic independent of UI frameworks
+
+### **UI Development with SwiftUI**
+
+1. **SwiftUI Best Practices**:
+   ```swift
+   struct UserProfileView: View {
+       @StateObject private var viewModel = UserViewModel()
+       @State private var showingEditSheet = false
+       
+       var body: some View {
+           NavigationView {
+               VStack(spacing: 16) {
+                   if viewModel.isLoading {
+                       ProgressView()
+                           .scaleEffect(1.2)
+                   } else if let user = viewModel.user {
+                       UserInfoCard(user: user)
+                   } else if let error = viewModel.errorMessage {
+                       ErrorView(message: error) {
+                           viewModel.fetchUser(id: "current")
+                       }
+                   }
+               }
+               .padding()
+               .navigationTitle("Profile")
+               .toolbar {
+                   ToolbarItem(placement: .navigationBarTrailing) {
+                       Button("Edit") {
+                           showingEditSheet = true
+                       }
+                   }
+               }
+           }
+           .sheet(isPresented: $showingEditSheet) {
+               EditUserView(user: viewModel.user)
+           }
+           .onAppear {
+               viewModel.fetchUser(id: "current")
+           }
+       }
+   }
+   ```
+
+2. **State Management**:
+   - Use `@State` for local view state
+   - Use `@StateObject` for view models and complex state
+   - Use `@ObservedObject` for external state objects
+   - Use `@EnvironmentObject` for app-wide state
+   - Use `@Binding` for two-way data flow
+
+3. **Performance Optimization**:
+   - Use `LazyVStack` and `LazyHStack` for large lists
+   - Implement proper view modifiers and custom modifiers
+   - Use `@ViewBuilder` for complex view composition
+   - Avoid expensive operations in view body
+
+### **UIKit Development (When Needed)**
+
+1. **View Controller Lifecycle**:
+   ```swift
+   class UserProfileViewController: UIViewController {
+       private let viewModel: UserViewModel
+       private let tableView = UITableView()
+       
+       init(viewModel: UserViewModel) {
+           self.viewModel = viewModel
+           super.init(nibName: nil, bundle: nil)
+       }
+       
+       required init?(coder: NSCoder) {
+           fatalError("init(coder:) has not been implemented")
+       }
+       
+       override func viewDidLoad() {
+           super.viewDidLoad()
+           setupUI()
+           setupBindings()
+       }
+       
+       override func viewWillAppear(_ animated: Bool) {
+           super.viewWillAppear(animated)
+           viewModel.fetchUser(id: "current")
+       }
+       
+       private func setupUI() {
+           view.backgroundColor = .systemBackground
+           setupTableView()
+           setupConstraints()
+       }
+       
+       private func setupBindings() {
+           viewModel.onUserUpdated = { [weak self] in
+               DispatchQueue.main.async {
+                   self?.tableView.reloadData()
+               }
+           }
+       }
+   }
+   ```
+
+2. **Auto Layout Best Practices**:
+   - Use programmatic Auto Layout with NSLayoutConstraint
+   - Implement proper constraint priorities
+   - Use safe area layouts for modern devices
+   - Create reusable constraint extensions
+
+### **Networking and Data Management**
+
+1. **URLSession and Networking**:
+   ```swift
+   protocol NetworkServiceProtocol {
+       func fetch<T: Decodable>(_ endpoint: APIEndpoint) async throws -> T
+       func post<T: Encodable, U: Decodable>(_ data: T, to endpoint: APIEndpoint) async throws -> U
+   }
+   
+   class NetworkService: NetworkServiceProtocol {
+       private let session: URLSession
+       private let baseURL: URL
+       
+       init(session: URLSession = .shared, baseURL: URL) {
+           self.session = session
+           self.baseURL = baseURL
+       }
+       
+       func fetch<T: Decodable>(_ endpoint: APIEndpoint) async throws -> T {
+           let url = baseURL.appendingPathComponent(endpoint.path)
+           var request = URLRequest(url: url)
+           request.httpMethod = endpoint.method.rawValue
+           request.allHTTPHeaderFields = endpoint.headers
+           
+           let (data, response) = try await session.data(for: request)
+           
+           guard let httpResponse = response as? HTTPURLResponse else {
+               throw NetworkError.invalidResponse
+           }
+           
+           guard 200...299 ~= httpResponse.statusCode else {
+               throw NetworkError.httpError(statusCode: httpResponse.statusCode)
+           }
+           
+           return try JSONDecoder().decode(T.self, from: data)
+       }
+   }
+   ```
+
+2. **Core Data Integration**:
+   - Use proper Core Data stack setup
+   - Implement background context for heavy operations
+   - Use fetch request templates for complex queries
+   - Implement proper error handling and rollback mechanisms
+
+### **Testing and Quality Assurance**
+
+1. **Unit Testing**:
+   ```swift
+   class UserViewModelTests: XCTestCase {
+       var sut: UserViewModel!
+       var mockUserService: MockUserService!
+       
+       override func setUp() {
+           super.setUp()
+           mockUserService = MockUserService()
+           sut = UserViewModel(userService: mockUserService)
+       }
+       
+       override func tearDown() {
+           sut = nil
+           mockUserService = nil
+           super.tearDown()
+       }
+       
+       func testFetchUserSuccess() async {
+           // Given
+           let expectedUser = User(id: "1", name: "John", email: "john@example.com")
+           mockUserService.mockResult = .success(expectedUser)
+           
+           // When
+           await sut.fetchUser(id: "1")
+           
+           // Then
+           XCTAssertEqual(sut.user?.id, expectedUser.id)
+           XCTAssertFalse(sut.isLoading)
+           XCTAssertNil(sut.errorMessage)
+       }
+       
+       func testFetchUserFailure() async {
+           // Given
+           let expectedError = NetworkError.invalidResponse
+           mockUserService.mockResult = .failure(expectedError)
+           
+           // When
+           await sut.fetchUser(id: "1")
+           
+           // Then
+           XCTAssertNil(sut.user)
+           XCTAssertFalse(sut.isLoading)
+           XCTAssertEqual(sut.errorMessage, expectedError.localizedDescription)
+       }
+   }
+   ```
+
+2. **UI Testing**:
+   - Use XCUITest for UI automation
+   - Create accessible UI elements for testing
+   - Implement proper test data management
+   - Use test schemes for different configurations
+
+### **Performance and Optimization**
+
+1. **Memory and Performance**:
+   - Use Instruments for profiling
+   - Implement proper image caching and loading
+   - Use background queues for heavy operations
+   - Implement proper cell reuse in table views
+   - Use lazy loading for large datasets
+
+2. **App Launch and Background**:
+   - Optimize app launch time
+   - Implement proper background task handling
+   - Use background app refresh appropriately
+   - Handle app state transitions properly
+
+### **Security Best Practices**
+
+1. **Data Protection**:
+   ```swift
+   class SecureStorage {
+       private let keychain = KeychainWrapper.standard
+       
+       func storeSecureData(_ data: Data, forKey key: String) throws {
+           try keychain.set(data, forKey: key)
+       }
+       
+       func retrieveSecureData(forKey key: String) throws -> Data? {
+           return try keychain.data(forKey: key)
+       }
+       
+       func deleteSecureData(forKey key: String) throws {
+           try keychain.removeObject(forKey: key)
+       }
+   }
+   ```
+
+2. **Network Security**:
+   - Use App Transport Security (ATS)
+   - Implement certificate pinning when needed
+   - Validate server certificates
+   - Use secure storage for sensitive data
+
+### **Accessibility and Internationalization**
+
+1. **Accessibility**:
+   ```swift
+   struct AccessibleButton: View {
+       let title: String
+       let action: () -> Void
+       
+       var body: some View {
+           Button(action: action) {
+               Text(title)
+           }
+           .accessibilityLabel(title)
+           .accessibilityHint("Double tap to activate")
+           .accessibilityTraits(.button)
+       }
+   }
+   ```
+
+2. **Localization**:
+   - Use NSLocalizedString for all user-facing text
+   - Implement proper pluralization rules
+   - Support right-to-left languages
+   - Use proper date and number formatting
+
+### **Code Organization and Structure**
+
+1. **File and Folder Structure**:
+   ```
+   MyApp/
+   ├── App/
+   │   ├── AppDelegate.swift
+   │   ├── SceneDelegate.swift
+   │   └── App.swift
+   ├── Features/
+   │   ├── User/
+   │   │   ├── Views/
+   │   │   ├── ViewModels/
+   │   │   ├── Models/
+   │   │   └── Services/
+   │   └── Settings/
+   ├── Shared/
+   │   ├── Extensions/
+   │   ├── Utilities/
+   │   ├── Constants/
+   │   └── Protocols/
+   ├── Resources/
+   │   ├── Assets.xcassets
+   │   ├── Localizable.strings
+   │   └── Info.plist
+   └── Tests/
+       ├── UnitTests/
+       └── UITests/
+   ```
+
+2. **Naming Conventions**:
+   - Use descriptive, intention-revealing names
+   - Follow Swift naming conventions
+   - Use proper prefixing for extensions
+   - Implement consistent naming across the codebase
+
+### **Dependency Management**
+
+1. **Swift Package Manager**:
+   - Use SPM for dependency management
+   - Pin dependency versions appropriately
+   - Minimize external dependencies
+   - Use semantic versioning
+
+2. **CocoaPods (if needed)**:
+   - Use Podfile.lock for version locking
+   - Implement proper pod configuration
+   - Use modular pods when possible
+
+### **Error Handling and Logging**
+
+1. **Comprehensive Error Handling**:
+   ```swift
+   enum AppError: LocalizedError {
+       case networkError(NetworkError)
+       case validationError(String)
+       case storageError(StorageError)
+       case unknownError(Error)
+       
+       var errorDescription: String? {
+           switch self {
+           case .networkError(let error):
+               return "Network error: \(error.localizedDescription)"
+           case .validationError(let message):
+               return "Validation error: \(message)"
+           case .storageError(let error):
+               return "Storage error: \(error.localizedDescription)"
+           case .unknownError(let error):
+               return "Unknown error: \(error.localizedDescription)"
+           }
+       }
+   }
+   ```
+
+2. **Logging Strategy**:
+   - Use proper logging levels (debug, info, warning, error)
+   - Implement crash reporting (Crashlytics, etc.)
+   - Use structured logging for better analysis
+   - Avoid logging sensitive information
+
+### **Continuous Integration and Deployment**
+
+1. **CI/CD Pipeline**:
+   - Automate testing and building
+   - Implement proper code signing
+   - Use fastlane for deployment automation
+   - Implement proper versioning and build numbers
+
+2. **Code Quality Tools**:
+   - Use SwiftLint for code style enforcement
+   - Implement proper code coverage reporting
+   - Use static analysis tools
+   - Perform regular dependency updates
+
+## When Writing iOS Code, Always Include:
+
+1. **Proper Error Handling**: Use `Result` types, `throws`, and comprehensive error enums
+2. **Memory Management**: Implement proper ARC patterns and avoid retain cycles
+3. **Type Safety**: Use strong typing and avoid force unwrapping
+4. **Accessibility**: Include proper accessibility labels and traits
+5. **Documentation**: Use Swift documentation comments for public APIs
+6. **Testing**: Write unit tests for business logic and UI tests for user flows
+7. **Performance**: Consider performance implications and optimize accordingly
+8. **Security**: Implement proper data protection and network security
+9. **Localization**: Use NSLocalizedString for all user-facing text
+10. **Modern Swift**: Leverage latest Swift features and best practices
+
+Remember: iOS development requires attention to detail, performance optimization, and user experience excellence. Always prioritize code quality, maintainability, and user accessibility in your implementations. 
