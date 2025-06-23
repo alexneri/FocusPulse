@@ -4,6 +4,8 @@ struct SettingsView: View {
     @ObservedObject var timerEngine: TimerEngine
     @Environment(\.dismiss) private var dismiss
     
+
+    
     var body: some View {
         NavigationView {
             Form {
@@ -37,7 +39,7 @@ struct SettingsView: View {
     // MARK: - Duration Settings Section
     
     private var durationSettingsSection: some View {
-        Section("Timer Durations") {
+        Section {
             DurationSlider(
                 title: "Work Session",
                 value: $timerEngine.settings.workDuration,
@@ -69,6 +71,8 @@ struct SettingsView: View {
                 }
                 .pickerStyle(.menu)
             }
+        } header: {
+            Text("Timer Durations")
         } footer: {
             Text("Customize the duration of work sessions and breaks to match your productivity rhythm.")
         }
@@ -77,12 +81,14 @@ struct SettingsView: View {
     // MARK: - Audio Settings Section
     
     private var audioSettingsSection: some View {
-        Section("Audio & Haptics") {
+        Section {
             Toggle("Sound Effects", isOn: $timerEngine.settings.soundEnabled)
             
             Toggle("Haptic Feedback", isOn: $timerEngine.settings.hapticEnabled)
             
             Toggle("Music Integration", isOn: $timerEngine.settings.musicIntegrationEnabled)
+        } header: {
+            Text("Audio & Haptics")
         } footer: {
             Text("Enable audio feedback and haptic responses for timer events. Music integration allows automatic playback control during sessions.")
         }
@@ -91,10 +97,12 @@ struct SettingsView: View {
     // MARK: - Behavior Settings Section
     
     private var behaviorSettingsSection: some View {
-        Section("Auto-Start Behavior") {
+        Section {
             Toggle("Auto-start Breaks", isOn: $timerEngine.settings.autoStartBreaks)
             
             Toggle("Auto-start Work Sessions", isOn: $timerEngine.settings.autoStartWork)
+        } header: {
+            Text("Auto-Start Behavior")
         } footer: {
             Text("Automatically start the next session when the current one completes. Useful for uninterrupted focus sessions.")
         }
@@ -103,7 +111,7 @@ struct SettingsView: View {
     // MARK: - Data Management Section
     
     private var dataManagementSection: some View {
-        Section("Data Management") {
+        Section {
             Button("Export Session Data") {
                 // TODO: Implement data export
                 print("Export data tapped")
@@ -114,6 +122,8 @@ struct SettingsView: View {
                 resetToDefaults()
             }
             .foregroundColor(.red)
+        } header: {
+            Text("Data Management")
         } footer: {
             Text("Export your productivity data or reset all settings to their default values.")
         }
@@ -122,7 +132,7 @@ struct SettingsView: View {
     // MARK: - App Info Section
     
     private var appInfoSection: some View {
-        Section("About") {
+        Section {
             HStack {
                 Text("Version")
                 Spacer()
@@ -136,6 +146,8 @@ struct SettingsView: View {
                 Text("1")
                     .foregroundColor(.secondary)
             }
+        } header: {
+            Text("About")
         }
     }
     

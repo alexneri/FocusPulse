@@ -7,6 +7,12 @@ struct CircularProgressView: View {
     
     @State private var animationProgress: Double = 0
     
+    init(progress: Double, sessionType: SessionType?, isRunning: Bool) {
+        self.progress = progress
+        self.sessionType = sessionType
+        self.isRunning = isRunning
+    }
+    
     private var progressColor: Color {
         sessionType?.color ?? .gray
     }

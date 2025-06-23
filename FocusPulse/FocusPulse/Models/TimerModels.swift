@@ -42,6 +42,15 @@ enum SessionType: Equatable, CaseIterable {
     case shortBreak(duration: TimeInterval)
     case longBreak(duration: TimeInterval)
     
+    // Manual CaseIterable implementation since we have associated values
+    static var allCases: [SessionType] {
+        return [
+            .work(duration: 25 * 60),
+            .shortBreak(duration: 5 * 60),
+            .longBreak(duration: 15 * 60)
+        ]
+    }
+    
     var duration: TimeInterval {
         switch self {
         case .work(let duration), .shortBreak(let duration), .longBreak(let duration):
