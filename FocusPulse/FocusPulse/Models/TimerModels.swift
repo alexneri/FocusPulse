@@ -72,11 +72,11 @@ enum SessionType: Equatable, CaseIterable {
     var color: Color {
         switch self {
         case .work:
-            return .blue
-        case .shortBreak:
             return .orange
+        case .shortBreak:
+            return .mint
         case .longBreak:
-            return .green
+            return .teal
         }
     }
     

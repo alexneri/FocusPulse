@@ -2,317 +2,170 @@ import Foundation
 import Combine
 import SwiftUI
 import AVFoundation
+import FocusPulseCore
 
-// MARK: - Timer Engine
+// MARK: - Timer Engine (presentation adapter)
+
+/// Presentation-layer adapter over the verified `FocusPulseCore.TimerEngine`.
+///
+/// The views keep the same interface they already use, but every bit of timing and
+/// state-machine logic is delegated to the drift-safe core engine — which derives the
+/// remaining time from a `Date` diff instead of `remainingTime -= 1`, so it stays accurate
+/// when the run loop stalls or the app is backgrounded (Story 1.2 / 1.4).
 @MainActor
 class TimerEngine: ObservableObject {
-    // MARK: - Published Properties
-    @Published var currentState: TimerState = .idle
-    @Published var remainingTime: TimeInterval = 0
-    @Published var currentSession: SessionType?
-    @Published var cycleProgress: CycleProgress = CycleProgress(currentSessionIndex: 0, totalSessionsInCycle: 8, cyclesCompletedToday: 0)
-    @Published var settings = TimerSettings()
-    
-    // MARK: - Private Properties
-    private var timer: Timer?
+    /// App-facing settings, bound by `SettingsView`. Any change is applied to the core engine.
+    @Published var settings: TimerSettings {
+        didSet { applySettings() }
+    }
+
+    /// The verified domain engine — the single source of truth for timer state.
+    let core: FocusPulseCore.TimerEngine
+
     private var cancellables = Set<AnyCancellable>()
-    private var sessionHistory: [CompletedSession] = []
-    private var workSessionsCompleted = 0
-    private var startTime: Date?
-    
-    // MARK: - Audio Properties
-    private var audioPlayer: AVAudioPlayer?
-    
-    // MARK: - Initialization
+
     init() {
+        let initial = TimerSettings()
+        self.settings = initial
+        self.core = FocusPulseCore.TimerEngine(configuration: TimerEngine.configuration(from: initial))
         setupAudioSession()
-    }
-    
-    deinit {
-        timer?.invalidate()
-    }
-    
-    // MARK: - Public Methods
-    
-    /// Start or resume the timer
-    func start() {
-        switch currentState {
-        case .idle:
-            startNewSession()
-        case .paused(let sessionType):
-            resumeSession(sessionType)
-        case .running, .completed:
-            return // Already running or completed
+
+        // Re-render whenever the core changes (it self-ticks once per second).
+        core.objectWillChange
+            .sink { [weak self] _ in self?.objectWillChange.send() }
+            .store(in: &cancellables)
+
+        // Session finished (reached zero or skipped) -> feedback (persistence lands in Epic 2).
+        core.onSessionCompleted = { [weak self] _, _, _ in
+            self?.playSound(.complete)
+            self?.triggerHapticFeedback(.success)
         }
     }
-    
-    /// Pause the current timer
+
+    // MARK: - App-facing state (mapped from the core)
+
+    var currentState: TimerState {
+        switch core.state {
+        case .idle: return .idle
+        case .running: return .running(appSession)
+        case .paused: return .paused(appSession)
+        case .completed: return .completed(appSession)
+        }
+    }
+
+    var currentSession: SessionType? {
+        core.state == .idle ? nil : appSession
+    }
+
+    private var appSession: SessionType {
+        switch core.sessionType {
+        case .work: return .work(duration: settings.workDuration)
+        case .shortBreak: return .shortBreak(duration: settings.shortBreakDuration)
+        case .longBreak: return .longBreak(duration: settings.longBreakDuration)
+        }
+    }
+
+    var remainingTime: TimeInterval { TimeInterval(core.remainingSeconds) }
+
+    var formattedRemainingTime: String {
+        let total = max(0, core.remainingSeconds)
+        return String(format: "%02d:%02d", total / 60, total % 60)
+    }
+
+    var progressPercentage: Double {
+        let total = core.configuration.duration(for: core.sessionType)
+        guard total > 0 else { return 0 }
+        return min(1, max(0, (total - remainingTime) / total))
+    }
+
+    var cycleProgress: CycleProgress {
+        let total = settings.longBreakInterval * 2
+        let index = total > 0 ? (core.completedWorkSessions * 2) % total : 0
+        return CycleProgress(
+            currentSessionIndex: index,
+            totalSessionsInCycle: total,
+            cyclesCompletedToday: core.completedWorkSessions / max(1, settings.longBreakInterval)
+        )
+    }
+
+    var canStart: Bool { core.state == .idle || core.state == .paused }
+    var canPause: Bool { core.state == .running }
+    var canStop: Bool { core.state == .running || core.state == .paused }
+    var canSkip: Bool { core.state == .running || core.state == .paused }
+
+    // MARK: - Controls (delegate to the core, add feedback)
+
+    func start() {
+        core.togglePlayPause() // idle -> start; paused/completed -> resume/start
+        playSound(.start)
+        triggerHapticFeedback(.light)
+    }
+
     func pause() {
-        guard let sessionType = currentState.currentSessionType else { return }
-        
-        timer?.invalidate()
-        timer = nil
-        currentState = .paused(sessionType)
-        
+        core.pause()
         playSound(.pause)
         triggerHapticFeedback(.light)
     }
-    
-    /// Stop and reset the timer
+
     func stop() {
-        timer?.invalidate()
-        timer = nil
-        
-        // Log interrupted session if one was running
-        if let sessionType = currentState.currentSessionType,
-           let startTime = startTime {
-            let interruptedSession = CompletedSession(
-                type: sessionType,
-                startTime: startTime,
-                endTime: Date(),
-                actualDuration: sessionType.duration - remainingTime,
-                wasCompleted: false
-            )
-            sessionHistory.append(interruptedSession)
-        }
-        
-        currentState = .idle
-        remainingTime = 0
-        currentSession = nil
-        startTime = nil
-        
+        core.stop()
         playSound(.stop)
         triggerHapticFeedback(.medium)
     }
-    
-    /// Skip to the next session
+
     func skip() {
-        completeCurrentSession(wasCompleted: false)
-        startNextSession()
-        
+        core.skip()
         playSound(.skip)
         triggerHapticFeedback(.light)
     }
-    
-    /// Reset timer to initial state
-    func reset() {
-        stop()
-        workSessionsCompleted = 0
-        cycleProgress = CycleProgress(currentSessionIndex: 0, totalSessionsInCycle: 8, cyclesCompletedToday: 0)
+
+    func reset() { stop() }
+
+    // MARK: - Settings
+
+    private func applySettings() {
+        core.updateConfiguration(TimerEngine.configuration(from: settings))
     }
-    
-    // MARK: - Private Methods
-    
-    private func startNewSession() {
-        let sessionType = settings.createWorkSession()
-        startSession(sessionType)
-    }
-    
-    private func resumeSession(_ sessionType: SessionType) {
-        currentState = .running(sessionType)
-        currentSession = sessionType
-        startTimer()
-        
-        playSound(.start)
-        triggerHapticFeedback(.light)
-    }
-    
-    private func startSession(_ sessionType: SessionType) {
-        currentState = .running(sessionType)
-        currentSession = sessionType
-        remainingTime = sessionType.duration
-        startTime = Date()
-        
-        startTimer()
-        updateCycleProgress()
-        
-        playSound(.start)
-        triggerHapticFeedback(.light)
-    }
-    
-    private func startTimer() {
-        timer?.invalidate()
-        timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
-            Task { @MainActor in
-                self?.timerTick()
-            }
-        }
-    }
-    
-    private func timerTick() {
-        guard remainingTime > 0 else {
-            completeCurrentSession(wasCompleted: true)
-            return
-        }
-        
-        remainingTime -= 1
-    }
-    
-    private func completeCurrentSession(wasCompleted: Bool) {
-        timer?.invalidate()
-        timer = nil
-        
-        guard let sessionType = currentState.currentSessionType,
-              let startTime = startTime else { return }
-        
-        // Log completed session
-        let completedSession = CompletedSession(
-            type: sessionType,
-            startTime: startTime,
-            endTime: Date(),
-            actualDuration: sessionType.duration - (wasCompleted ? 0 : remainingTime),
-            wasCompleted: wasCompleted
-        )
-        sessionHistory.append(completedSession)
-        
-        // Update work session counter
-        if sessionType.isWorkSession && wasCompleted {
-            workSessionsCompleted += 1
-        }
-        
-        currentState = .completed(sessionType)
-        
-        // Play completion sound and haptic
-        playSound(.complete)
-        triggerHapticFeedback(.success)
-        
-        // Auto-start next session if enabled
-        if shouldAutoStartNextSession() {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-                self.startNextSession()
-            }
-        }
-    }
-    
-    private func startNextSession() {
-        let nextSessionType = determineNextSessionType()
-        startSession(nextSessionType)
-    }
-    
-    private func determineNextSessionType() -> SessionType {
-        guard let currentSessionType = currentState.currentSessionType else {
-            return settings.createWorkSession()
-        }
-        
-        switch currentSessionType {
-        case .work:
-            // Determine if it should be a long break
-            if workSessionsCompleted % settings.longBreakInterval == 0 && workSessionsCompleted > 0 {
-                return settings.createLongBreakSession()
-            } else {
-                return settings.createShortBreakSession()
-            }
-        case .shortBreak, .longBreak:
-            return settings.createWorkSession()
-        }
-    }
-    
-    private func shouldAutoStartNextSession() -> Bool {
-        guard let currentSessionType = currentState.currentSessionType else { return false }
-        
-        switch currentSessionType {
-        case .work:
-            return settings.autoStartBreaks
-        case .shortBreak, .longBreak:
-            return settings.autoStartWork
-        }
-    }
-    
-    private func updateCycleProgress() {
-        let totalSessions = settings.longBreakInterval * 2 // Work + break sessions
-        let currentIndex = (workSessionsCompleted * 2) % totalSessions
-        
-        cycleProgress = CycleProgress(
-            currentSessionIndex: currentIndex,
-            totalSessionsInCycle: totalSessions,
-            cyclesCompletedToday: workSessionsCompleted / settings.longBreakInterval
+
+    private static func configuration(from settings: TimerSettings) -> TimerConfiguration {
+        TimerConfiguration(
+            workMinutes: Int((settings.workDuration / 60).rounded()),
+            shortBreakMinutes: Int((settings.shortBreakDuration / 60).rounded()),
+            longBreakMinutes: Int((settings.longBreakDuration / 60).rounded()),
+            longBreakInterval: settings.longBreakInterval
         )
     }
-    
+
     // MARK: - Audio & Haptic Feedback
-    
+
     private func setupAudioSession() {
         do {
-            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default, options: [.mixWithOthers])
+            // `.ambient` respects the silent switch (design-spec §; Story 1.5).
+            try AVAudioSession.sharedInstance().setCategory(.ambient, mode: .default, options: [.mixWithOthers])
             try AVAudioSession.sharedInstance().setActive(true)
         } catch {
             print("Failed to setup audio session: \(error)")
         }
     }
-    
+
     private func playSound(_ soundType: SoundType) {
         guard settings.soundEnabled else { return }
-        
-        // In a real implementation, you would load actual sound files
-        // For now, we'll use system sounds or create placeholder sounds
+        // Placeholder until bundled .caf assets land (Story 1.5).
         print("Playing sound: \(soundType)")
     }
-    
-    private func triggerHapticFeedback(_ type: UIImpactFeedbackGenerator.FeedbackStyle) {
+
+    private func triggerHapticFeedback(_ style: UIImpactFeedbackGenerator.FeedbackStyle) {
         guard settings.hapticEnabled else { return }
-        
-        let impactFeedback = UIImpactFeedbackGenerator(style: type)
-        impactFeedback.impactOccurred()
-    }
-    
-    // MARK: - Computed Properties
-    
-    var formattedRemainingTime: String {
-        let minutes = Int(remainingTime) / 60
-        let seconds = Int(remainingTime) % 60
-        return String(format: "%02d:%02d", minutes, seconds)
-    }
-    
-    var progressPercentage: Double {
-        guard let sessionType = currentState.currentSessionType else { return 0 }
-        let elapsed = sessionType.duration - remainingTime
-        return elapsed / sessionType.duration
-    }
-    
-    var canStart: Bool {
-        switch currentState {
-        case .idle, .paused:
-            return true
-        default:
-            return false
-        }
-    }
-    
-    var canPause: Bool {
-        currentState.isRunning
-    }
-    
-    var canStop: Bool {
-        switch currentState {
-        case .running, .paused:
-            return true
-        default:
-            return false
-        }
-    }
-    
-    var canSkip: Bool {
-        switch currentState {
-        case .running, .paused:
-            return true
-        default:
-            return false
-        }
+        UIImpactFeedbackGenerator(style: style).impactOccurred()
     }
 }
 
 // MARK: - Supporting Types
 
 enum SoundType {
-    case start
-    case pause
-    case stop
-    case complete
-    case skip
+    case start, pause, stop, complete, skip
 }
-
-// MARK: - Extensions
 
 extension UIImpactFeedbackGenerator.FeedbackStyle {
     static let success = UIImpactFeedbackGenerator.FeedbackStyle.heavy
-} 
+}
