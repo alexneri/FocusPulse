@@ -112,6 +112,7 @@
 			);
 			name = FocusPulse;
 			packageProductDependencies = (
+				FCFCFC0000000000000000D1 /* FocusPulseCore */,
 			);
 			productName = FocusPulse;
 			productReference = 381BC39F2E082B1D000225DB /* FocusPulse.app */;
@@ -195,6 +196,9 @@
 			);
 			mainGroup = 381BC3962E082B1D000225DB;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				FCFCFC0000000000000000C0 /* XCLocalSwiftPackageReference "../Core" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 381BC3A02E082B1D000225DB /* Products */;
 			projectDirPath = "";
@@ -206,6 +210,21 @@
 			);
 		};
 /* End PBXProject section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		FCFCFC0000000000000000C0 /* XCLocalSwiftPackageReference "../Core" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ../Core;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		FCFCFC0000000000000000D1 /* FocusPulseCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = FCFCFC0000000000000000C0 /* XCLocalSwiftPackageReference "../Core" */;
+			productName = FocusPulseCore;
+		};
+/* End XCSwiftPackageProductDependency section */
 
 /* Begin PBXResourcesBuildPhase section */
 		381BC39D2E082B1D000225DB /* Resources */ = {
