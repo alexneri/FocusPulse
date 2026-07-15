@@ -1,7 +1,9 @@
 import SwiftUI
+import FocusPulseCore
 
 struct MainTimerView: View {
     @StateObject private var timerEngine = TimerEngine()
+    @EnvironmentObject private var themeStore: ThemeStore
     @State private var showingSettings = false
     @State private var showingStatistics = false
     
@@ -26,6 +28,7 @@ struct MainTimerView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .padding(.horizontal, 20)
+                .background(themeStore.activeTheme.canvas.ignoresSafeArea())
                 .navigationTitle("")
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
@@ -41,9 +44,11 @@ struct MainTimerView: View {
         }
         .sheet(isPresented: $showingSettings) {
             SettingsView(timerEngine: timerEngine)
+                .environmentObject(themeStore)
         }
         .sheet(isPresented: $showingStatistics) {
             StatisticsView(timerEngine: timerEngine)
+                .environmentObject(themeStore)
         }
     }
     
@@ -55,7 +60,7 @@ struct MainTimerView: View {
             ZStack {
                 CircularProgressView(
                     progress: timerEngine.progressPercentage,
-                    sessionType: timerEngine.currentSession,
+                    tint: ringTint,
                     isRunning: timerEngine.currentState.isRunning
                 )
                 
@@ -70,7 +75,7 @@ struct MainTimerView: View {
                         Text(sessionType.displayName)
                             .font(.title3)
                             .fontWeight(.medium)
-                            .foregroundColor(sessionType.color)
+                            .foregroundColor(ringTint)
                     } else {
                         Text("Ready to Focus")
                             .font(.title3)
@@ -99,7 +104,7 @@ struct MainTimerView: View {
             // Primary Action Button (Play/Pause)
             ControlButton(
                 systemName: primaryButtonSystemName,
-                color: .blue,
+                color: themeStore.activeAccent,
                 isLarge: true,
                 action: primaryButtonAction
             )
@@ -161,6 +166,12 @@ struct MainTimerView: View {
     
     // MARK: - Computed Properties
     
+    private var ringTint: Color {
+        timerEngine.currentSession == nil
+            ? .gray
+            : themeStore.activeTheme.sessionColor(timerEngine.core.sessionType)
+    }
+
     private var primaryButtonSystemName: String {
         switch timerEngine.currentState {
         case .idle, .completed:

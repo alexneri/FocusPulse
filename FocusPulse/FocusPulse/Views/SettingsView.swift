@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SettingsView: View {
     @ObservedObject var timerEngine: TimerEngine
+    @EnvironmentObject private var themeStore: ThemeStore
     @Environment(\.dismiss) private var dismiss
     
 
@@ -11,7 +12,10 @@ struct SettingsView: View {
             Form {
                 // Duration Settings
                 durationSettingsSection
-                
+
+                // Appearance
+                appearanceSection
+
                 // Audio & Haptic Settings
                 audioSettingsSection
                 
@@ -78,8 +82,36 @@ struct SettingsView: View {
         }
     }
     
+    // MARK: - Appearance Section
+
+    private var appearanceSection: some View {
+        Section {
+            Picker("Theme", selection: $themeStore.selectedThemeID) {
+                ForEach(ThemeStore.bundled) { theme in
+                    Text(theme.tier == .pro ? "\(theme.name)  ·  Pro" : theme.name).tag(theme.id)
+                }
+            }
+            if themeStore.activeTheme.supportsAccentChoice {
+                Picker("Accent", selection: $themeStore.accentChoice) {
+                    ForEach(AccentChoice.allCases) { accent in
+                        Text(accent.name).tag(accent)
+                    }
+                }
+            }
+            Picker("Appearance", selection: $themeStore.appearance) {
+                ForEach(AppearanceMode.allCases) { mode in
+                    Text(mode.name).tag(mode)
+                }
+            }
+        } header: {
+            Text("Appearance")
+        } footer: {
+            Text("Pick a visual theme, accent, and light/dark mode. Pro themes are marked; purchase gating arrives with Epic 6.")
+        }
+    }
+
     // MARK: - Audio Settings Section
-    
+
     private var audioSettingsSection: some View {
         Section {
             Toggle("Sound Effects", isOn: $timerEngine.settings.soundEnabled)

@@ -2,19 +2,19 @@ import SwiftUI
 
 struct CircularProgressView: View {
     let progress: Double
-    let sessionType: SessionType?
+    let tint: Color
     let isRunning: Bool
-    
+
     @State private var animationProgress: Double = 0
-    
-    init(progress: Double, sessionType: SessionType?, isRunning: Bool) {
+
+    init(progress: Double, tint: Color, isRunning: Bool) {
         self.progress = progress
-        self.sessionType = sessionType
+        self.tint = tint
         self.isRunning = isRunning
     }
-    
+
     private var progressColor: Color {
-        sessionType?.color ?? .gray
+        tint
     }
     
     private var trackColor: Color {
@@ -83,23 +83,9 @@ struct CircularProgressView: View {
 // MARK: - Preview
 #Preview {
     VStack(spacing: 40) {
-        CircularProgressView(
-            progress: 0.7,
-            sessionType: .work(duration: 1500),
-            isRunning: true
-        )
-        
-        CircularProgressView(
-            progress: 0.3,
-            sessionType: .shortBreak(duration: 300),
-            isRunning: false
-        )
-        
-        CircularProgressView(
-            progress: 0.9,
-            sessionType: .longBreak(duration: 900),
-            isRunning: true
-        )
+        CircularProgressView(progress: 0.7, tint: .orange, isRunning: true)
+        CircularProgressView(progress: 0.3, tint: .mint, isRunning: false)
+        CircularProgressView(progress: 0.9, tint: .teal, isRunning: true)
     }
     .padding()
 } 
