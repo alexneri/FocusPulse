@@ -26,6 +26,9 @@ class TimerEngine: ObservableObject {
     /// Persistence for completed sessions (Epic 2).
     private let repository: SessionRepository
 
+    /// Apple Music automation (Epic 6 / Story 6.4).
+    private let music = MusicController()
+
     private var cancellables = Set<AnyCancellable>()
 
     init(repository: SessionRepository = CoreDataSessionRepository()) {
@@ -154,12 +157,18 @@ class TimerEngine: ObservableObject {
             AppGroup.defaults?.set(data, forKey: SharedTimerState.key)
         }
         WidgetCenter.shared.reloadAllTimelines()
+        if settings.musicIntegrationEnabled {
+            music.update(state: core.state, sessionType: core.sessionType, autoPauseOnBreak: true)
+        }
     }
 
     // MARK: - Settings
 
     private func applySettings() {
         core.updateConfiguration(TimerEngine.configuration(from: settings))
+        if settings.musicIntegrationEnabled {
+            Task { await music.requestAuthorizationIfNeeded() }
+        }
     }
 
     private static func configuration(from settings: TimerSettings) -> TimerConfiguration {
