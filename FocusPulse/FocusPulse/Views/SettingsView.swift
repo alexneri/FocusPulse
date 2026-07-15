@@ -139,12 +139,35 @@ struct SettingsView: View {
             Toggle("Sound Effects", isOn: $timerEngine.settings.soundEnabled)
             
             Toggle("Haptic Feedback", isOn: $timerEngine.settings.hapticEnabled)
-            
-            Toggle("Music Integration", isOn: $timerEngine.settings.musicIntegrationEnabled)
+
+            Toggle(isOn: Binding(
+                get: { timerEngine.settings.musicIntegrationEnabled },
+                set: { enabled in
+                    // Pro-gated: a free user tapping this gets the paywall, and the
+                    // toggle snaps back off (the underlying value is never set).
+                    if enabled && !store.isPro {
+                        showPaywall = true
+                    } else {
+                        timerEngine.settings.musicIntegrationEnabled = enabled
+                    }
+                }
+            )) {
+                HStack {
+                    Text("Music Integration")
+                    if !store.isPro {
+                        Text("Pro")
+                            .font(.caption2).fontWeight(.semibold)
+                            .padding(.horizontal, 6).padding(.vertical, 2)
+                            .background(Color.accentColor.opacity(0.15))
+                            .foregroundColor(.accentColor)
+                            .clipShape(Capsule())
+                    }
+                }
+            }
         } header: {
             Text("Audio & Haptics")
         } footer: {
-            Text("Enable audio feedback and haptic responses for timer events. Music integration allows automatic playback control during sessions.")
+            Text("Enable audio feedback and haptic responses for timer events. Music integration (Pro) automatically plays and pauses your Apple Music during focus sessions.")
         }
     }
     
