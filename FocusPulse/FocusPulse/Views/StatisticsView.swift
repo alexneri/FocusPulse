@@ -1,24 +1,26 @@
 import SwiftUI
+import Charts
+import FocusPulseCore
 
 struct StatisticsView: View {
     @ObservedObject var timerEngine: TimerEngine
-    @State private var selectedPeriod: TimePeriod = .daily
+    @State private var sessions: [FocusSession] = []
     @Environment(\.dismiss) private var dismiss
-    
+
+    private let repository: SessionRepository
+    private let statsEngine = StatisticsEngine()
+
+    init(timerEngine: TimerEngine, repository: SessionRepository = CoreDataSessionRepository()) {
+        self.timerEngine = timerEngine
+        self.repository = repository
+    }
+
     var body: some View {
         NavigationView {
             ScrollView {
                 VStack(spacing: 24) {
-                    // Time Period Selector
-                    timePeriodSelector
-                    
-                    // Key Metrics Cards
                     keyMetricsSection
-                    
-                    // Chart Visualization
                     chartSection
-                    
-                    // Session History
                     sessionHistorySection
                 }
                 .padding(.horizontal, 20)
@@ -28,206 +30,143 @@ struct StatisticsView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") {
-                        dismiss()
-                    }
+                    Button("Done") { dismiss() }
                 }
-                
-                ToolbarItem(placement: .navigationBarLeading) {
-                    shareButton
+            }
+            .overlay {
+                if sessions.isEmpty {
+                    ContentUnavailableView(
+                        "No sessions yet",
+                        systemImage: "chart.bar",
+                        description: Text("Finish a focus session and your stats will show up here.")
+                    )
                 }
             }
         }
+        .task { await loadSessions() }
     }
-    
-    // MARK: - Time Period Selector
-    
-    private var timePeriodSelector: some View {
-        Picker("Time Period", selection: $selectedPeriod) {
-            ForEach(TimePeriod.allCases, id: \.self) { period in
-                Text(period.displayName).tag(period)
-            }
-        }
-        .pickerStyle(.segmented)
-    }
-    
-    // MARK: - Key Metrics Section
-    
+
+    // MARK: - Key Metrics
+
     private var keyMetricsSection: some View {
-        LazyVGrid(columns: [
-            GridItem(.flexible()),
-            GridItem(.flexible())
-        ], spacing: 16) {
-            MetricCard(
-                title: "Total Focus Time",
-                value: formatFocusTime(mockStats.totalFocusTime),
-                icon: "clock.fill",
-                color: .blue
-            )
-            
-            MetricCard(
-                title: "Sessions Completed",
-                value: "\(mockStats.completedSessions)",
-                icon: "checkmark.circle.fill",
-                color: .green
-            )
-            
-            MetricCard(
-                title: "Focus Streak",
-                value: "\(mockStats.focusStreak) days",
-                icon: "flame.fill",
-                color: .orange
-            )
-            
-            MetricCard(
-                title: "Completion Rate",
-                value: "\(Int(mockStats.completionRate * 100))%",
-                icon: "chart.bar.fill",
-                color: .purple
-            )
+        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 16) {
+            MetricCard(title: "Total Focus Time", value: formatFocusTime(statsEngine.totalFocusTime(sessions)),
+                       icon: "clock.fill", color: .orange)
+            MetricCard(title: "Sessions Completed", value: "\(completedWorkCount)",
+                       icon: "checkmark.circle.fill", color: .mint)
+            MetricCard(title: "Focus Streak", value: "\(statsEngine.currentStreak(sessions, asOf: Date())) days",
+                       icon: "flame.fill", color: .pink)
+            MetricCard(title: "Best Focus Time", value: bestFocusHourLabel,
+                       icon: "sun.max.fill", color: .teal)
         }
     }
-    
-    // MARK: - Chart Section
-    
+
+    // MARK: - Chart (Epic 3.3)
+
     private var chartSection: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Focus Trends")
+            Text("This Week")
                 .font(.headline)
                 .fontWeight(.semibold)
-            
-            // Placeholder for chart - In a real app, you'd use Swift Charts
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color.gray.opacity(0.1))
-                .frame(height: 200)
-                .overlay(
-                    VStack(spacing: 8) {
-                        Image(systemName: "chart.line.uptrend.xyaxis")
-                            .font(.largeTitle)
-                            .foregroundColor(.blue)
-                        Text("Focus Time Chart")
-                            .font(.headline)
-                        Text("Chart visualization would go here")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
+
+            Chart(weeklyChartData) { day in
+                BarMark(
+                    x: .value("Day", day.date, unit: .day),
+                    y: .value("Minutes", day.minutes)
                 )
+                .foregroundStyle(.orange.gradient)
+                .cornerRadius(4)
+            }
+            .chartXAxis {
+                AxisMarks(values: .stride(by: .day)) { _ in
+                    AxisValueLabel(format: .dateTime.weekday(.narrow))
+                }
+            }
+            .frame(height: 200)
         }
     }
-    
-    // MARK: - Session History Section
-    
+
+    // MARK: - Session History
+
     private var sessionHistorySection: some View {
         VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                Text("Recent Sessions")
-                    .font(.headline)
-                    .fontWeight(.semibold)
-                Spacer()
-                Button("View All") {
-                    // TODO: Navigate to full session history
-                }
-                .font(.subheadline)
-                .foregroundColor(.blue)
-            }
-            
+            Text("Recent Sessions")
+                .font(.headline)
+                .fontWeight(.semibold)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
             LazyVStack(spacing: 12) {
-                ForEach(mockSessions) { session in
-                    SessionHistoryRow(session: session)
+                ForEach(sessions.prefix(12)) { session in
+                    FocusSessionRow(session: session)
                 }
             }
         }
     }
-    
-    // MARK: - Share Button
-    
-    private var shareButton: some View {
-        Button(action: shareStats) {
-            Image(systemName: "square.and.arrow.up")
-                .font(.title2)
-        }
-        .accessibilityLabel("Share statistics")
+
+    // MARK: - Derived values
+
+    private var completedWorkCount: Int {
+        sessions.filter { $0.type == .work && $0.status == .completed }.count
     }
-    
-    // MARK: - Helper Methods
-    
+
+    private var bestFocusHourLabel: String {
+        guard let hour = statsEngine.bestFocusHour(sessions) else { return "—" }
+        var comps = DateComponents(); comps.hour = hour
+        let date = Calendar.current.date(from: comps) ?? Date()
+        let formatter = DateFormatter(); formatter.dateFormat = "h a"
+        return formatter.string(from: date)
+    }
+
+    /// Focus minutes for each of the last 7 days (zero-filled).
+    private var weeklyChartData: [DayFocus] {
+        let calendar = Calendar.current
+        let byDay = Dictionary(
+            statsEngine.dailyStats(sessions).map { (calendar.startOfDay(for: $0.date), $0.totalFocusTime) },
+            uniquingKeysWith: { a, _ in a }
+        )
+        let today = calendar.startOfDay(for: Date())
+        return (0..<7).reversed().compactMap { offset -> DayFocus? in
+            guard let day = calendar.date(byAdding: .day, value: -offset, to: today) else { return nil }
+            return DayFocus(date: day, minutes: (byDay[day] ?? 0) / 60)
+        }
+    }
+
+    private func loadSessions() async {
+        sessions = (try? await repository.allSessions()) ?? []
+    }
+
     private func formatFocusTime(_ seconds: TimeInterval) -> String {
         let hours = Int(seconds) / 3600
         let minutes = Int(seconds) % 3600 / 60
-        
-        if hours > 0 {
-            return "\(hours)h \(minutes)m"
-        } else {
-            return "\(minutes)m"
-        }
-    }
-    
-    private func shareStats() {
-        // TODO: Implement statistics sharing
-        print("Share statistics tapped")
-    }
-    
-    // MARK: - Mock Data (Replace with real data)
-    
-    private var mockStats: DailyStatistics {
-        DailyStatistics(
-            totalFocusTime: 7200, // 2 hours
-            completedSessions: 8,
-            focusStreak: 5,
-            completionRate: 0.85
-        )
-    }
-    
-    private var mockSessions: [SessionHistory] {
-        [
-            SessionHistory(
-                type: .work(duration: 1500),
-                startTime: Date().addingTimeInterval(-3600),
-                duration: 1500,
-                wasCompleted: true
-            ),
-            SessionHistory(
-                type: .shortBreak(duration: 300),
-                startTime: Date().addingTimeInterval(-5100),
-                duration: 300,
-                wasCompleted: true
-            ),
-            SessionHistory(
-                type: .work(duration: 1500),
-                startTime: Date().addingTimeInterval(-6900),
-                duration: 1200,
-                wasCompleted: false
-            )
-        ]
+        return hours > 0 ? "\(hours)h \(minutes)m" : "\(minutes)m"
     }
 }
 
-// MARK: - Supporting Views
+// MARK: - Chart Data
+
+struct DayFocus: Identifiable {
+    let date: Date
+    let minutes: Double
+    var id: Date { date }
+}
+
+// MARK: - Metric Card
 
 struct MetricCard: View {
     let title: String
     let value: String
     let icon: String
     let color: Color
-    
+
     var body: some View {
         VStack(spacing: 12) {
             HStack {
-                Image(systemName: icon)
-                    .font(.title2)
-                    .foregroundColor(color)
+                Image(systemName: icon).font(.title2).foregroundColor(color)
                 Spacer()
             }
-            
             VStack(alignment: .leading, spacing: 4) {
-                Text(value)
-                    .font(.title)
-                    .fontWeight(.bold)
-                    .foregroundColor(.primary)
-                
-                Text(title)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                Text(value).font(.title).fontWeight(.bold).foregroundColor(.primary)
+                Text(title).font(.caption).foregroundColor(.secondary)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
@@ -237,93 +176,48 @@ struct MetricCard: View {
     }
 }
 
-struct SessionHistoryRow: View {
-    let session: SessionHistory
-    
+// MARK: - Session Row
+
+struct FocusSessionRow: View {
+    let session: FocusSession
+
     var body: some View {
         HStack(spacing: 12) {
-            // Session Type Icon
-            Circle()
-                .fill(session.type.color)
-                .frame(width: 12, height: 12)
-            
-            // Session Info
+            Circle().fill(color).frame(width: 12, height: 12)
+
             VStack(alignment: .leading, spacing: 2) {
-                Text(session.type.displayName)
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                
-                Text(formatTime(session.startTime))
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                Text(name).font(.subheadline).fontWeight(.medium)
+                Text(session.startTime, style: .time).font(.caption).foregroundColor(.secondary)
             }
-            
+
             Spacer()
-            
-            // Duration and Status
+
             VStack(alignment: .trailing, spacing: 2) {
-                Text(formatDuration(session.duration))
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                
-                Image(systemName: session.wasCompleted ? "checkmark.circle.fill" : "xmark.circle.fill")
+                Text("\(Int(session.duration) / 60)m").font(.subheadline).fontWeight(.medium)
+                Image(systemName: session.status == .completed ? "checkmark.circle.fill" : "xmark.circle.fill")
                     .font(.caption)
-                    .foregroundColor(session.wasCompleted ? .green : .red)
+                    .foregroundColor(session.status == .completed ? .green : .secondary)
             }
         }
-        .padding(.vertical, 8)
-        .padding(.horizontal, 12)
+        .padding(.vertical, 8).padding(.horizontal, 12)
         .background(Color(.systemBackground))
         .cornerRadius(8)
-        .overlay(
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(Color(.systemGray5), lineWidth: 1)
-        )
+        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(.systemGray5), lineWidth: 1))
     }
-    
-    private func formatTime(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.timeStyle = .short
-        return formatter.string(from: date)
-    }
-    
-    private func formatDuration(_ seconds: TimeInterval) -> String {
-        let minutes = Int(seconds) / 60
-        return "\(minutes)m"
-    }
-}
 
-// MARK: - Supporting Types
+    private var color: Color {
+        switch session.type {
+        case .work: return .orange
+        case .shortBreak: return .mint
+        case .longBreak: return .teal
+        }
+    }
 
-enum TimePeriod: CaseIterable {
-    case daily, weekly, monthly
-    
-    var displayName: String {
-        switch self {
-        case .daily: return "Daily"
-        case .weekly: return "Weekly"
-        case .monthly: return "Monthly"
+    private var name: String {
+        switch session.type {
+        case .work: return "Work Session"
+        case .shortBreak: return "Short Break"
+        case .longBreak: return "Long Break"
         }
     }
 }
-
-struct DailyStatistics {
-    let totalFocusTime: TimeInterval
-    let completedSessions: Int
-    let focusStreak: Int
-    let completionRate: Double
-}
-
-struct SessionHistory: Identifiable {
-    let id = UUID()
-    let type: SessionType
-    let startTime: Date
-    let duration: TimeInterval
-    let wasCompleted: Bool
-}
-
-// MARK: - Preview
-
-#Preview {
-    StatisticsView(timerEngine: TimerEngine())
-} 
