@@ -21,6 +21,7 @@ struct StatisticsView: View {
                 VStack(spacing: 24) {
                     keyMetricsSection
                     chartSection
+                    heatmapSection
                     sessionHistorySection
                 }
                 .padding(.horizontal, 20)
@@ -86,14 +87,35 @@ struct StatisticsView: View {
         }
     }
 
+    // MARK: - Heatmap (Epic 3.3)
+
+    private var heatmapSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Consistency")
+                .font(.headline)
+                .fontWeight(.semibold)
+            ScrollView(.horizontal, showsIndicators: false) {
+                FocusHeatmap(sessions: sessions)
+            }
+            Text("Last 12 weeks of focus")
+                .font(.caption2)
+                .foregroundColor(.secondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
     // MARK: - Session History
 
     private var sessionHistorySection: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Recent Sessions")
-                .font(.headline)
-                .fontWeight(.semibold)
-                .frame(maxWidth: .infinity, alignment: .leading)
+            HStack {
+                Text("Recent Sessions")
+                    .font(.headline)
+                    .fontWeight(.semibold)
+                Spacer()
+                NavigationLink("See All") { HistoryView() }
+                    .font(.subheadline)
+            }
 
             LazyVStack(spacing: 12) {
                 ForEach(sessions.prefix(12)) { session in
