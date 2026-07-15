@@ -4,6 +4,7 @@ import FocusPulseCore
 struct MainTimerView: View {
     @StateObject private var timerEngine = TimerEngine()
     @EnvironmentObject private var themeStore: ThemeStore
+    @EnvironmentObject private var store: StoreManager
     @State private var showingSettings = false
     @State private var showingStatistics = false
     
@@ -45,6 +46,7 @@ struct MainTimerView: View {
         .sheet(isPresented: $showingSettings) {
             SettingsView(timerEngine: timerEngine)
                 .environmentObject(themeStore)
+                .environmentObject(store)
         }
         .sheet(isPresented: $showingStatistics) {
             StatisticsView(timerEngine: timerEngine)

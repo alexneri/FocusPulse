@@ -3,7 +3,9 @@ import SwiftUI
 struct SettingsView: View {
     @ObservedObject var timerEngine: TimerEngine
     @EnvironmentObject private var themeStore: ThemeStore
+    @EnvironmentObject private var store: StoreManager
     @Environment(\.dismiss) private var dismiss
+    @State private var showPaywall = false
     
 
     
@@ -37,9 +39,12 @@ struct SettingsView: View {
                     }
                 }
             }
+            .sheet(isPresented: $showPaywall) {
+                PaywallView().environmentObject(store)
+            }
         }
     }
-    
+
     // MARK: - Duration Settings Section
     
     private var durationSettingsSection: some View {
@@ -86,9 +91,26 @@ struct SettingsView: View {
 
     private var appearanceSection: some View {
         Section {
-            Picker("Theme", selection: $themeStore.selectedThemeID) {
+            Picker("Theme", selection: Binding(
+                get: { themeStore.selectedThemeID },
+                set: { newID in
+                    let theme = ThemeStore.bundled.first { $0.id == newID }
+                    if theme?.tier == .pro && !store.isPro {
+                        showPaywall = true
+                    } else {
+                        themeStore.selectedThemeID = newID
+                    }
+                }
+            )) {
                 ForEach(ThemeStore.bundled) { theme in
                     Text(theme.tier == .pro ? "\(theme.name)  ·  Pro" : theme.name).tag(theme.id)
+                }
+            }
+            if !store.isPro {
+                Button {
+                    showPaywall = true
+                } label: {
+                    Label("Unlock Pro themes & more", systemImage: "bolt.fill")
                 }
             }
             if themeStore.activeTheme.supportsAccentChoice {
