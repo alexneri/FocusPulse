@@ -22,11 +22,15 @@ class TimerEngine: ObservableObject {
     /// The verified domain engine — the single source of truth for timer state.
     let core: FocusPulseCore.TimerEngine
 
+    /// Persistence for completed sessions (Epic 2).
+    private let repository: SessionRepository
+
     private var cancellables = Set<AnyCancellable>()
 
-    init() {
+    init(repository: SessionRepository = CoreDataSessionRepository()) {
         let initial = TimerSettings()
         self.settings = initial
+        self.repository = repository
         self.core = FocusPulseCore.TimerEngine(configuration: TimerEngine.configuration(from: initial))
         setupAudioSession()
 
@@ -36,9 +40,11 @@ class TimerEngine: ObservableObject {
             .store(in: &cancellables)
 
         // Session finished (reached zero or skipped) -> feedback (persistence lands in Epic 2).
-        core.onSessionCompleted = { [weak self] _, _, _ in
-            self?.playSound(.complete)
-            self?.triggerHapticFeedback(.success)
+        core.onSessionCompleted = { [weak self] type, start, end in
+            guard let self else { return }
+            self.playSound(.complete)
+            self.triggerHapticFeedback(.success)
+            self.persist(type: type, start: start, end: end)
         }
     }
 
@@ -120,6 +126,15 @@ class TimerEngine: ObservableObject {
     }
 
     func reset() { stop() }
+
+    // MARK: - Persistence
+
+    private func persist(type: FocusPulseCore.SessionType, start: Date, end: Date) {
+        guard let session = FocusSession(
+            type: type, startTime: start, endTime: end, status: .completed) else { return }
+        let repository = self.repository
+        Task { try? await repository.save(session) }
+    }
 
     // MARK: - Settings
 
