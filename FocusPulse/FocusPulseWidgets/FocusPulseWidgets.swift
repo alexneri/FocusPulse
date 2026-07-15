@@ -4,7 +4,7 @@ import SwiftUI
 // NOTE: This folder is the source for the FocusPulse widget extension. It is NOT part of the app
 // target's synchronized group (so it never compiles into the app). Add it via Xcode as a new
 // Widget Extension target; also add the app's `Shared/SharedTimerState.swift` to this target's
-// membership (shared type) and enable the App Group `group.net.sg-r.FocusPulse` on both targets.
+// membership (shared type) and enable the App Group `group.moe.sei.FocusPulse` on both targets.
 // See README.md in this folder.
 
 // MARK: - Bundle

@@ -5,8 +5,8 @@ import StoreKit
 /// and restores, and listens for transaction updates. `isPro` drives all feature gating.
 @MainActor
 final class StoreManager: ObservableObject {
-    static let yearlyID = "net.sg-r.FocusPulse.pro.yearly"
-    static let lifetimeID = "net.sg-r.FocusPulse.pro.lifetime"
+    static let yearlyID = "moe.sei.FocusPulse.pro.yearly"
+    static let lifetimeID = "moe.sei.FocusPulse.pro.lifetime"
     static let productIDs = [yearlyID, lifetimeID]
 
     @Published private(set) var products: [Product] = []

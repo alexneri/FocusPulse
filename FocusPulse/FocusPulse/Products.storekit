@@ -13,7 +13,7 @@
           "locale" : "en_US"
         }
       ],
-      "productID" : "net.sg-r.FocusPulse.pro.lifetime",
+      "productID" : "moe.sei.FocusPulse.pro.lifetime",
       "referenceName" : "Pulse Lifetime",
       "type" : "NonConsumable"
     }
@@ -45,7 +45,7 @@
               "locale" : "en_US"
             }
           ],
-          "productID" : "net.sg-r.FocusPulse.pro.yearly",
+          "productID" : "moe.sei.FocusPulse.pro.yearly",
           "recurringSubscriptionPeriod" : "P1Y",
           "referenceName" : "Pulse Pro Yearly",
           "subscriptionGroupID" : "2001",

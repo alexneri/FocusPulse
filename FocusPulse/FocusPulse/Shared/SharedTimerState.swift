@@ -4,7 +4,7 @@ import Foundation
 /// extension (Story 5.1). The widget process cannot read the in-memory `TimerEngine`, so the app
 /// writes a lightweight snapshot here.
 enum AppGroup {
-    static let identifier = "group.net.sg-r.FocusPulse"
+    static let identifier = "group.moe.sei.FocusPulse"
     static var defaults: UserDefaults? { UserDefaults(suiteName: identifier) }
 }
 

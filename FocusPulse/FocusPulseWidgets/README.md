@@ -11,12 +11,12 @@ target exists.
 ## Add the extension target (one-time, in Xcode)
 
 1. **File → New → Target… → Widget Extension.** Name it `FocusPulseWidgets`; keep "Include Live
-   Activity" checked. Bundle id `net.sg-r.FocusPulse.FocusPulseWidgets`.
+   Activity" checked. Bundle id `moe.sei.FocusPulse.FocusPulseWidgets`.
 2. Replace the generated files with the ones in this folder (or point the new target's group here),
    and use this `Info.plist`. The bundle uses `StaticConfiguration` (no configuration intent).
 3. **Shared type:** add the app's `FocusPulse/Shared/SharedTimerState.swift` to the widget target's
    **Target Membership** so both targets share `SharedTimerState` + `AppGroup`.
-4. **App Group:** in *Signing & Capabilities*, add **App Groups → `group.net.sg-r.FocusPulse`** to
+4. **App Group:** in *Signing & Capabilities*, add **App Groups → `group.moe.sei.FocusPulse`** to
    **both** the app and widget targets (register it on the Apple Developer account for device builds).
 5. **Live Activities:** add `NSSupportsLiveActivities = YES` to the **app**'s Info.plist.
 6. **Deep links:** register the `focuspulse` URL scheme on the app; handle `focuspulse://pause` and
