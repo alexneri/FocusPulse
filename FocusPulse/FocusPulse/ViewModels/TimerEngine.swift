@@ -2,6 +2,7 @@ import Foundation
 import Combine
 import SwiftUI
 import AVFoundation
+import WidgetKit
 import FocusPulseCore
 
 // MARK: - Timer Engine (presentation adapter)
@@ -36,7 +37,10 @@ class TimerEngine: ObservableObject {
 
         // Re-render whenever the core changes (it self-ticks once per second).
         core.objectWillChange
-            .sink { [weak self] _ in self?.objectWillChange.send() }
+            .sink { [weak self] _ in
+                self?.objectWillChange.send()
+                DispatchQueue.main.async { self?.publishSharedState() }
+            }
             .store(in: &cancellables)
 
         // Session finished (reached zero or skipped) -> feedback (persistence lands in Epic 2).
@@ -134,6 +138,22 @@ class TimerEngine: ObservableObject {
             type: type, startTime: start, endTime: end, status: .completed) else { return }
         let repository = self.repository
         Task { try? await repository.save(session) }
+    }
+
+    // MARK: - Widget / Live Activity shared state (Story 5.1)
+
+    private func publishSharedState() {
+        let shared = SharedTimerState(
+            stateRaw: core.state.rawValue,
+            sessionTypeRaw: core.sessionType.rawValue,
+            remainingSeconds: core.remainingSeconds,
+            expectedEndDate: core.expectedEndDate,
+            isRunning: core.state == .running
+        )
+        if let data = try? JSONEncoder().encode(shared) {
+            AppGroup.defaults?.set(data, forKey: SharedTimerState.key)
+        }
+        WidgetCenter.shared.reloadAllTimelines()
     }
 
     // MARK: - Settings
