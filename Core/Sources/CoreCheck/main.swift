@@ -156,6 +156,37 @@ eq(stats.bestFocusHour(sample), 9, "best focus hour = 9am (50 min beats other ho
 eq(stats.currentStreak([], asOf: day(0)), 0, "empty streak = 0")
 check(stats.bestFocusHour([]) == nil, "no best hour for no sessions")
 
+// MARK: WatchSync (cross-device policy — Story 7.4 / 7.6)
+print("WatchSync")
+let wt0 = Date(timeIntervalSince1970: 1_000_000)
+@MainActor func wsnap(_ state: TimerState, origin: DeviceRole, owner: DeviceRole? = nil,
+                      rev: UInt64 = 1, at offset: TimeInterval = 0) -> TimerSnapshot {
+    TimerSnapshot(state: state, sessionType: .work, remainingSeconds: 1500, expectedEndDate: nil,
+                  completedWorkSessions: 0, owner: owner, revision: rev, origin: origin,
+                  updatedAt: wt0.addingTimeInterval(offset))
+}
+eq(TimerReconciler.resolve(local: wsnap(.running, origin: .phone, at: 10),
+                           remote: wsnap(.paused, origin: .watch, at: 20)), .takeRemote,
+   "newer snapshot wins")
+eq(TimerReconciler.resolve(local: wsnap(.running, origin: .phone, rev: 3, at: 10),
+                           remote: wsnap(.running, origin: .watch, rev: 3, at: 10)), .takeLocal,
+   "phone wins a full tie (deterministic, symmetric)")
+eq(TimerReconciler.resolve(local: wsnap(.running, origin: .phone, rev: 4, at: 10),
+                           remote: wsnap(.idle, origin: .watch, rev: 1, at: 25)), .takeRemote,
+   "a later Stop overrides an active session")
+eq(TimerAuthority.route(command: .pause, snapshot: wsnap(.running, origin: .phone, owner: .phone, at: 10),
+                        thisDevice: .watch, peerReachable: true), .forwardToPeer,
+   "non-owner forwards to the owning device when reachable")
+eq(TimerAuthority.route(command: .pause, snapshot: wsnap(.running, origin: .phone, owner: .phone, at: 10),
+                        thisDevice: .watch, peerReachable: false), .applyLocally,
+   "non-owner falls back to local control when the peer is unreachable")
+eq(TimerAuthority.route(command: .start, snapshot: wsnap(.idle, origin: .phone),
+                        thisDevice: .watch, peerReachable: true), .applyLocally,
+   "start from idle is always local")
+let wsA = FocusSession(type: .work, startTime: wt0, endTime: wt0.addingTimeInterval(1500))!
+eq(SessionMerger.merge(existing: [wsA], incoming: [wsA]).count, 1,
+   "sessions synced back de-duplicate by id")
+
 // MARK: Result
 print("")
 if failures == 0 {
