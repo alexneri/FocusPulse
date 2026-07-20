@@ -1,4 +1,4 @@
-Product Requirement: FocusPulse iOS App - Settings Screen
+Product Requirement: PulseArc iOS App - Settings Screen
 
 Purpose: To allow users to customize timer durations, preferences, and app behavior while maintaining a familiar iOS settings interface that's easy to navigate and understand.
 

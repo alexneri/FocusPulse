@@ -1,4 +1,4 @@
-Product Requirement: FocusPulse iOS App - Statistics Screen
+Product Requirement: PulseArc iOS App - Statistics Screen
 
 Purpose: To provide users with meaningful insights into their productivity patterns through clear data visualization and key metrics that motivate continued focus improvement.
 

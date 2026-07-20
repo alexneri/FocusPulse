@@ -1,4 +1,4 @@
-Product Requirement: FocusPulse iOS App - Share/Export Screen
+Product Requirement: PulseArc iOS App - Share/Export Screen
 
 Purpose: To enable users to easily export their productivity data and share their achievements while maintaining privacy controls and offering multiple format options.
 

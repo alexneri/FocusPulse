@@ -1,6 +1,6 @@
 # App Icons
 
-Source: Claude Design (Fable). Concept = the FocusPulse progress ring ("the pulse").
+Source: Claude Design (Fable). Concept = the PulseArc progress ring ("the pulse").
 Canvas `#141417`, Focus Orange `#FF9D3B` — matches the Refined theme tokens.
 All exports are 1024×1024, RGB, **no alpha** (App Store safe).
 

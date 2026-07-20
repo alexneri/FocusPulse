@@ -1,5 +1,5 @@
 import Foundation
-import FocusPulseCore
+import PulseArcCore
 
 // A tiny, dependency-free verification runner for the Domain logic. Mirrors the XCTest suite
 // so the core can be proven on a Command-Line-Tools-only machine (no Xcode / XCTest):
