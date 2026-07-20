@@ -15,6 +15,20 @@
             buildForAnalyzing = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
+               BlueprintIdentifier = "B9B92BA0300D95EB0012FBCE"
+               BuildableName = "FocusPulseWatch Watch App.app"
+               BlueprintName = "FocusPulseWatch Watch App"
+               ReferencedContainer = "container:FocusPulse.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "YES"
+            buildForProfiling = "YES"
+            buildForArchiving = "YES"
+            buildForAnalyzing = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
                BlueprintIdentifier = "381BC39E2E082B1D000225DB"
                BuildableName = "FocusPulse.app"
                BlueprintName = "FocusPulse"
@@ -29,30 +43,6 @@
       selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
       shouldUseLaunchSchemeArgsEnv = "YES"
       shouldAutocreateTestPlan = "YES">
-      <Testables>
-         <TestableReference
-            skipped = "NO"
-            parallelizable = "YES">
-            <BuildableReference
-               BuildableIdentifier = "primary"
-               BlueprintIdentifier = "381BC3AB2E082B1F000225DB"
-               BuildableName = "FocusPulseTests.xctest"
-               BlueprintName = "FocusPulseTests"
-               ReferencedContainer = "container:FocusPulse.xcodeproj">
-            </BuildableReference>
-         </TestableReference>
-         <TestableReference
-            skipped = "NO"
-            parallelizable = "YES">
-            <BuildableReference
-               BuildableIdentifier = "primary"
-               BlueprintIdentifier = "381BC3B52E082B1F000225DB"
-               BuildableName = "FocusPulseUITests.xctest"
-               BlueprintName = "FocusPulseUITests"
-               ReferencedContainer = "container:FocusPulse.xcodeproj">
-            </BuildableReference>
-         </TestableReference>
-      </Testables>
    </TestAction>
    <LaunchAction
       buildConfiguration = "Debug"
@@ -68,9 +58,9 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "381BC39E2E082B1D000225DB"
-            BuildableName = "FocusPulse.app"
-            BlueprintName = "FocusPulse"
+            BlueprintIdentifier = "B9B92BA0300D95EB0012FBCE"
+            BuildableName = "FocusPulseWatch Watch App.app"
+            BlueprintName = "FocusPulseWatch Watch App"
             ReferencedContainer = "container:FocusPulse.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
@@ -85,9 +75,9 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "381BC39E2E082B1D000225DB"
-            BuildableName = "FocusPulse.app"
-            BlueprintName = "FocusPulse"
+            BlueprintIdentifier = "B9B92BA0300D95EB0012FBCE"
+            BuildableName = "FocusPulseWatch Watch App.app"
+            BlueprintName = "FocusPulseWatch Watch App"
             ReferencedContainer = "container:FocusPulse.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
