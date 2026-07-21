@@ -52,6 +52,34 @@ struct MainTimerView: View {
             StatisticsView(timerEngine: timerEngine)
                 .environmentObject(themeStore)
         }
+        .onOpenURL(perform: handleDeepLink)
+    }
+
+    // MARK: - Deep Links
+
+    /// Routes `pulsearc://` URLs emitted by widgets and the Live Activity to the timer.
+    ///
+    /// The action is carried in the URL host: `pulsearc://pause`, `pulsearc://skip`,
+    /// `pulsearc://timer` / `pulsearc://open` (and a bare `pulsearc://` host) all map here.
+    private func handleDeepLink(_ url: URL) {
+        guard url.scheme == "pulsearc" else { return }
+        switch url.host {
+        case "pause":
+            // Toggle: pause if running, resume if paused (matches the widget/docs contract).
+            if timerEngine.canPause {
+                timerEngine.pause()
+            } else if timerEngine.currentState.isPaused {
+                timerEngine.start()
+            }
+        case "skip":
+            if timerEngine.canSkip { timerEngine.skip() }
+        case "timer", "open", nil, "":
+            // Surface the main timer — dismiss any presented sheet.
+            showingSettings = false
+            showingStatistics = false
+        default:
+            break
+        }
     }
     
     // MARK: - Timer Section

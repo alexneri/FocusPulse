@@ -84,6 +84,13 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		381BC3FA2E082B1F000225DB /* Exceptions for "PulseArc" folder in "PulseArc" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 381BC39E2E082B1D000225DB /* PulseArc */;
+		};
 		B9B92BC0300D9A560012FBCE /* Exceptions for "PulseArc" folder in "PulseArcWatch Watch App" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -117,6 +124,7 @@
 		381BC3A12E082B1D000225DB /* PulseArc */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
+				381BC3FA2E082B1F000225DB /* Exceptions for "PulseArc" folder in "PulseArc" target */,
 				B9B92BC0300D9A560012FBCE /* Exceptions for "PulseArc" folder in "PulseArcWatch Watch App" target */,
 				B9B92BE5300D9C360012FBCE /* Exceptions for "PulseArc" folder in "PulseArcWatchComplicationsExtension" target */,
 			);
@@ -638,6 +646,7 @@
 				DEVELOPMENT_TEAM = QQPYNXLTJQ;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = PulseArc/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "PulseArc";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_NSAppleMusicUsageDescription = "PulseArc plays and pauses your Apple Music in step with your focus sessions.";
@@ -670,6 +679,7 @@
 				DEVELOPMENT_TEAM = QQPYNXLTJQ;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = PulseArc/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "PulseArc";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_NSAppleMusicUsageDescription = "PulseArc plays and pauses your Apple Music in step with your focus sessions.";
@@ -851,7 +861,7 @@
 					"@executable_path/../../../../Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = moe.sei.PulseArc.watchkitapp.PulseArcWatchComplications;
+				PRODUCT_BUNDLE_IDENTIFIER = moe.sei.PulseArc.watchkitapp.complications;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = watchos;
 				SKIP_INSTALL = YES;
@@ -887,7 +897,7 @@
 					"@executable_path/../../../../Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = moe.sei.PulseArc.watchkitapp.PulseArcWatchComplications;
+				PRODUCT_BUNDLE_IDENTIFIER = moe.sei.PulseArc.watchkitapp.complications;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = watchos;
 				SKIP_INSTALL = YES;

@@ -44,6 +44,6 @@ The iOS app target requires **full Xcode** with the iOS SDK and a Simulator. The
 was scaffolded on had only Command Line Tools, so the SwiftUI/CoreData/WidgetKit/StoreKit layers
 are written to spec but not yet compiled here.
 
-- Bundle ID `com.sgrsh.pulsearc` · iOS 17.0+ · Swift 6.2 (default main-actor isolation)
+- Bundle ID `moe.sei.PulseArc` · iOS 18.4+ · app target Swift 5, `PulseArcCore` package Swift 6 (default main-actor isolation)
 - Clean Architecture + MVVM+C · CoreData (CloudKit-ready) · StoreKit 2 · WidgetKit / ActivityKit
 - Progressive enhancement: Liquid Glass (iOS 26), AlarmKit (iOS 18, v1.1)
