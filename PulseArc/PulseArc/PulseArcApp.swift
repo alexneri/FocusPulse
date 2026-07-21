@@ -1,0 +1,24 @@
+//
+//  PulseArcApp.swift
+//  PulseArc
+//
+//  Created by Alexander N. V. Neri on 22/06/2025.
+//
+
+import SwiftUI
+
+@main
+struct PulseArcApp: App {
+    @StateObject private var themeStore = ThemeStore()
+    @StateObject private var store = StoreManager()
+
+    var body: some Scene {
+        WindowGroup {
+            ContentView()
+                .environmentObject(themeStore)
+                .environmentObject(store)
+                .tint(themeStore.activeAccent)
+                .preferredColorScheme(themeStore.appearance.colorScheme)
+        }
+    }
+}

@@ -1,4 +1,4 @@
-Product Requirement: FocusPulse iOS App - Main Timer Screen
+Product Requirement: PulseArc iOS App - Main Timer Screen
 
 Purpose: To provide users with a clean, focused interface for managing Pomodoro timer sessions, displaying current progress and essential controls without distractions.
 

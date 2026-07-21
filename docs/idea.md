@@ -1,8 +1,8 @@
-# FocusPulse, an iOS app to help you focus and get things done
+# PulseArc, an iOS app to help you focus and get things done
 
 ## Description
 
-FocusPulse is a minimal Pomodoro focus timer.
+PulseArc is a minimal Pomodoro focus timer.
 
 ## Features
 
